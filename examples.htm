@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Factotum JS</title>
+		<script src="factotum.js"></script>
+	</head>
+	<body>
+		<script>
+		var string="factotum";
+		var array=string.split('');
+		var object=F.reduce(array,function(state,letter,index){state[index]=letter;},{});
+		
+		F.puts(string,array,object);
+		
+		//	F.substr
+		F.puts(
+			F.substr(string,0,4),
+			F.substr(string,0,-3),
+			F.substr(string,-3)
+		);
+		
+		//	F.ljust, F.rjust, F.center
+		F.puts(
+			JSON.stringify(F.ljust(string,16)),
+			JSON.stringify(F.rjust(string,16,'-')),
+			JSON.stringify(F.center(string,16,'-%'))
+		);
+		
+		//	F.trim, F.repeat
+		F.puts(
+			F.trim("   "+string+"\t\r\n  "),
+			F.repeat(string,3)
+		);
+		
+		//	F.className, F.isArray, F.isArguments, F.isIterable
+		(function(){
+			F.puts(
+				F.className(string),
+				F.className(array),
+				F.className(F),
+				F.isArray(string),
+				F.isArray(array),
+				F.isArguments(arguments),
+				F.isArguments(array),
+				F.isIterable(array),
+				F.isIterable(arguments),
+				F.isIterable(object)
+			);
+		})();
+		</script>
+	</body>
+</html>
