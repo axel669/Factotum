@@ -1119,7 +1119,10 @@ factotum.util={
 	valuef:valueFunction,
 	valueTest:valueTest,
 	plucker:pluckFunction,
-	identity:identityFunction
+	identity:identityFunction,
+	clamp:function(value,min,max){
+		return Math.min(max,Math.max(value,min));
+	}
 };
 
 each(factotum,function(f,name){
@@ -1584,6 +1587,11 @@ function ajax(url,postData,async,callback)
 	return p;
 }
 factotum.ajax=ajax;
+
+if(has_window)
+	factotum.util.getScriptTag=function(){
+		return last(document.querySelectorAll("script"));
+	};
 
 
 function instanceOf(obj,_class)
