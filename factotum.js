@@ -656,6 +656,8 @@ function slice(array,start,size)
 	start=start||0;
 	size=size||(len-start);
 	if(size<=0) return [];
+	if(size>len-start)
+		size=len-start;
 	var end=start+size;
 	var index=start-1;
 	var r=new Array(size);
