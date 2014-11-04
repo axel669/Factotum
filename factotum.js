@@ -1180,7 +1180,10 @@ each($class,function(f,name){
 	};
 });
 
-
+function addProperty(obj,name,prop)
+{
+	return Object.defineProperty(obj,name,prop);
+}
 function promiseCallback(f,p)
 {
 	return function(value){
@@ -1188,8 +1191,8 @@ function promiseCallback(f,p)
 			var r=f(value);
 			if(r && typeof(r.then)==='function')
 				r.then(
-					function(s){p.resolve(s);},
-					function(e){p.reject(e);}
+					function(s){p.resolve(s)},
+					function(e){p.reject(e)}
 				);
 			else
 				p.resolve(r);
@@ -1202,76 +1205,111 @@ function promiseCallback(f,p)
 	};
 }
 
-function promise(f,rethrow)
+function Promise(f,rethrow)
 {
-	this.state='pending';
-	this.__success__=[];
-	this.__error__=[];
-	if(typeof(f)==='boolean')
-		this.rethrow=f;
-	else
-		this.rethrow=!!rethrow;
+	var self={};
+	if(arguments.length===1 && typeof(f)==="boolean")
+	{
+		rethrow=f;
+		f=null;
+	}
+	f=f||null;
+	rethrow=rethrow===true;
 	
-	if(typeof(f)==='function')
-		f(bind(this.resolve,this),bind(this.reject,this));
-}
-$class(promise).
-	methods({
-		then:function(good,bad){
-			var p=new promise(this.rethrow);
-			if(good) good=promiseCallback(good,p);
-			if(bad) bad=promiseCallback(bad,p);
-			
-			if(this.state==='success' && good) good(this.value);
-			if(this.state==='failure' && bad) bad(this.value);
-			if(this.state==='pending')
-			{
-				if(good) this.__success__.push(good);
-				if(bad) this.__error__.push(bad);
-			}
-			return p;
-		},
-		success:function(f){
-			return this.then(f,null);
-		},
-		'catch':function(f){
-			return this.then(null,f);
-		},
-		resolve:function(value){
-			if(this.state!=='pending') return;
-			this.state='success';
-			this.value=value;
-			arrayEach(this.__success__,function(f){
-				delay(f,0,value);
-			});
-			return this;
-		},
-		reject:function(value){
-			if(this.state!=='pending') return;
-			this.state='failure';
-			this.value=value;
-			arrayEach(this.__error__,function(f){
-				delay(f,0,value);
-			});
-			return this;
-		},
-		fulfilled:{
-			get:function(){
-				return this.state==='success';
-			}
-		},
-		rejected:{
-			get:function(){
-				return this.state==='failure';
-			}
-		},
-		pending:{
-			get:function(){
-				return this.state==='pending';
-			}
+	var success=[];
+	var failure=[];
+	var state="pending";
+	var value;
+	
+	function resolve(val)
+	{
+		if(state!=="pending")
+			throw new Error("Cannot call resolve on non-pending promise");
+		state="resolved";
+		value=val;
+		success.forEach(function(cb){
+			setImmediate(cb,value);
+		});
+	}
+	function reject(err)
+	{
+		if(state!=="pending")
+			throw new Error("Cannot call reject on non-pending promise");
+		state="rejected";
+		value=err;
+		failure.forEach(function(cb){
+			setImmediate(cb,value);
+		});
+	}
+	
+	addProperty(self,'rethrow',{get:function(){return rethrow}});
+	addProperty(self,'state',{get:function(){return state}});
+	self.then=function(g,b){
+		var next=new Promise(rethrow);
+		g=g||null;
+		b=b||null;
+		if(state==="pending")
+		{
+			if(g!==null)
+				success.push(promiseCallback(g,next));
+			if(b!==null)
+				failure.push(promiseCallback(b,next));
 		}
-	});
-makeGlobal(promise);
+		if(state==="resolved" && g!==null)
+			promiseCallback(g,next)(value);
+		if(state==="rejected" && b!==null)
+			promiseCallback(b,next)(value);
+		
+		return next;
+	}
+	self.resolve=resolve;
+	self.reject=reject;
+	if(f!==null)
+		f(resolve,reject);
+	return self;
+}
+
+Promise.all=function(){
+	var args=slice(arguments), left=args.length;
+	var allP=new Promise();
+	
+	function done(i)
+	{
+		return function(value){
+			--left;
+			args[i]=value;
+			if(left===0)
+				allP.resolve(args);
+		};
+	}
+	
+	for(var x=0;x<left;++x)
+		args[i].then(done(i));
+	
+	return allP;
+}
+Promise.race=function(){
+	var count=arguments.length;
+	var resolved=false;
+	
+	var first=new Promise;
+	function done(value)
+	{
+		if(resolved) return;
+		resolved=true;
+		first.resolve(value);
+	}
+	for(var x=0;x<count;++x)
+		arguments[x].then(done);
+	
+	return first;
+};
+Promise.custom=true;
+
+factotum.util.Promise=Promise;
+if(has_window && typeof(window.Promise)!=="undefined")
+	window.$Promise=Promise;
+window.Promise=Promise;
 
 
 var storage={
@@ -1572,7 +1610,7 @@ factotum.template=compileTemplate;
 function ajax(url,postData,async,callback)
 {
 	var request=new XMLHttpRequest();
-	var p=new promise();
+	var p=new Promise();
 	request.addEventListener('load',function(event){
 		var result={requestObject:request};
 		result.statusCode=request.status;
@@ -1618,7 +1656,7 @@ factotum.instanceOf=instanceOf;
 
 if(has_window)
 {
-	var DOMReadyPromise=new promise(true);
+	var DOMReadyPromise=new Promise(true);
 	var domreadysetup=function(){
 		if(!document.body)
 		{
@@ -1643,10 +1681,9 @@ if(has_window)
 
 if(typeof(exports)!=='undefined')
 	exports=factotum;
-
-if(has_global)
-	__global__.F=factotum;
-if(has_window)
-	__window__.F=factotum;
+else if(typeof(module)!=="undefined")
+	module.exports=factotum;
+else
+	makeGlobal(factotum,"fac");
 
 })();
