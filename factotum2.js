@@ -26,7 +26,9 @@ var fc = (function (messageListener) {
         if ((typeof initialValue) === 'function') {
             valueFunction = initialValue;
         } else {
-            valueFunction = function () { return initialValue; };
+            valueFunction = function () {
+                return initialValue;
+            };
         }
 
         for (index = 0; index < length; index += 1) {
@@ -151,7 +153,9 @@ var fc = (function (messageListener) {
             finalValue = value;
             successCallbacks.forEach(
                 function (callback) {
-                    setImmediate(function () { callback(value); });
+                    setImmediate(function () {
+                        callback(value);
+                    });
                 }
             );
 
@@ -169,7 +173,9 @@ var fc = (function (messageListener) {
             finalValue = value;
             failureCallbacks.forEach(
                 function (callback) {
-                    setImmediate(function () { callback(value); });
+                    setImmediate(function () {
+                        callback(value);
+                    });
                 }
             );
 
@@ -184,8 +190,12 @@ var fc = (function (messageListener) {
                     retValue = callback(value);
                     if (retValue.hasOwnProperty('then') === true && (typeof retValue.then) === 'function') {
                         retValue.then(
-                            function (successValue) { nextPromise.resolve(successValue); },
-                            function (failureValue) { nextPromise.reject(failureValue); }
+                            function (successValue) {
+                                nextPromise.resolve(successValue);
+                            },
+                            function (failureValue) {
+                                nextPromise.reject(failureValue);
+                            }
                         );
                     } else {
                         nextPromise.resolve(retValue);
@@ -351,6 +361,74 @@ var fc = (function (messageListener) {
         );
     }
 
+    function sprintf(format) {
+        var args = quickSlice(arguments, 1);
+
+        return format.replace(
+            /\%\%|\%\{[a-zA-Z0-9\/ ]+?\}/g,
+            function (str) {
+                if (str === "%%") {
+                    return "%";
+                }
+
+                var info = str.slice(2, -1).split('/'),
+                    propertyChain = info[0].split('.'),
+                    formatType = info[1] || 'string',
+                    value = args,
+                    formatFunction = null;
+
+                if (sprintf.userFormat.hasOwnProperty(formatType) === true) {
+                    formatFunction = sprintf.userFormat[formatType];
+                }
+                if (sprintf.format.hasOwnProperty(formatType) === true) {
+                    formatFunction = sprintf.format[formatType];
+                }
+
+                if (formatFunction === null) {
+                    throw new Error("Format `" + formatType + "` has not been added to sprintf");
+                }
+
+                propertyChain.forEach(
+                    function (prop) {
+                        value = value[prop];
+                    }
+                );
+
+                return formatFunction(value);
+            }
+        );
+    }
+    sprintf.format = Object.freeze({
+        string: function (value) {
+            return value.toString();
+        },
+        number: function (value) {
+            return (+value);
+        },
+        exp: function (value) {
+            return (+value).toExponential();
+        },
+        EXP: function (value) {
+            return (+value).toExponential().toUpperCase();
+        },
+        hex: function (value) {
+            return (+value).toString(16);
+        },
+        HEX: function (value) {
+            return (+value).toString(16).toUpperCase();
+        },
+        bin: function (value) {
+            return (+value).toString(2);
+        },
+        json: function (value) {
+            return JSON.stringify(value);
+        },
+        url: function (value) {
+            return encodeURIComponent(value.toString());
+        }
+    });
+    sprintf.userFormat = {};
+
     return Object.freeze({
         util: {
             log: passableLog,
@@ -369,6 +447,7 @@ var fc = (function (messageListener) {
         ajax: {
             get: ajaxGet,
             post: ajaxPost
-        }
+        },
+        sprintf: sprintf
     });
 }(window));
