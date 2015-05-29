@@ -1,28 +1,62 @@
-var fc = (function (messageListener) {
+var fc;
+fc = (function (messageListener) {
     "use strict";
 
-    var setImmediate,
-        clearImmediate;
+    var ajaxGet;
+    var ajaxPost;
+    var assign;
+    var each;
+    var find;
+    var group;
+    var indexOf;
+    var promise;
+    var quickSlice;
+    var range;
+    var remove;
 
-    function quickSlice(arrayLike, start) {
-        var newArray = [],
-            length = arrayLike.length,
-            index;
+    var passableError;
+    var passableLog;
+
+    var clearImmediate;
+    var setImmediate;
+
+    quickSlice = function (arrayLike, start) {
+        var index;
+        var length;
+        var newArray;
 
         start = start || 0;
+        length = arrayLike.length;
+        newArray = [];
 
-        for (index = start; index < length; index += 1) {
+        index = start;
+        while (true) {
             newArray.push(arrayLike[index]);
+
+            index += 1;
+            if (index === length) {
+                break;
+            }
         }
 
         return newArray;
-    }
+    };
 
-    function range(length, initialValue) {
-        var array = [],
-            valueFunction,
-            index;
+    remove = function (arrayLike, index, count) {
+        var slice;
 
+        slice = Array.prototype.slice.bind(arrayLike);
+        count = count || 1;
+
+        return slice(0, index).concat(slice(index + count));
+    };
+
+    range = function (length, initialValue) {
+        var array;
+        var index;
+        var valueFunction;
+
+        array = [];
         if ((typeof initialValue) === 'function') {
             valueFunction = initialValue;
         } else {
@@ -31,27 +65,41 @@ var fc = (function (messageListener) {
             };
         }
 
-        for (index = 0; index < length; index += 1) {
+        index = 0;
+        while (true) {
             array.push(valueFunction(index));
+
+            index += 1;
+            if (index === length) {
+                break;
+            }
         }
 
         return array;
-    }
+    };
 
-    function indexOf(arrayLike, testFunction, start) {
-        var index,
-            length = arrayLike.length;
+    indexOf = function (arrayLike, testFunction, start) {
+        var index;
+        var length;
+
         start = start || 0;
+        length = arrayLike.length;
 
-        for (index = start; index < length; index += 1) {
+        index = 0;
+        while (true) {
             if (testFunction(arrayLike[index]) === true) {
                 return index;
             }
+
+            index += 1;
+            if (index === length) {
+                break;
+            }
         }
         return -1;
-    }
+    };
 
-    function assign(base) {
+    assign = function (base) {
         quickSlice(arguments, 1).forEach(
             function (arg) {
                 if (arg === undefined) {
@@ -65,27 +113,30 @@ var fc = (function (messageListener) {
             }
         );
         return base;
-    }
+    };
 
-    function each(arrayLike, func) {
+    each = function (arrayLike, func) {
         Array.prototype.forEach.call(arrayLike, func);
-    }
+    };
 
-    function find(arrayLike, testFunction) {
-        var index = indexOf(arrayLike, testFunction);
+    find = function (arrayLike, testFunction) {
+        var index;
+
+        index = indexOf(arrayLike, testFunction);
         if (index === -1) {
             return;
         }
         return arrayLike[index];
-    }
+    };
 
-    function group(arrayLike, keyFunction) {
+    group = function (arrayLike, keyFunction) {
         var groups = {};
 
         each(
             arrayLike,
             function (value) {
                 var key = keyFunction(value);
+
                 if (groups.hasOwnProperty(key) === false) {
                     groups[key] = [];
                 }
@@ -94,21 +145,25 @@ var fc = (function (messageListener) {
         );
 
         return groups;
-    }
+    };
 
     (function () {
         var immediates = {};
 
         setImmediate = function (func) {
-            var id = Date.now().toString() + Math.random(),
-                args = quickSlice(arguments, 1),
-                callback = function (evt) {
-                    if (evt.data === id) {
-                        func.apply({}, args);
-                        messageListener.removeEventListener("message", evt);
-                        delete immediates[id];
-                    }
-                };
+            var args;
+            var callback;
+            var id;
+
+            id = Date.now().toString() + Math.random();
+            args = quickSlice(arguments, 1);
+            callback = function (evt) {
+                if (evt.data === id) {
+                    func.apply({}, args);
+                    messageListener.removeEventListener("message", evt);
+                    delete immediates[id];
+                }
+            };
 
             immediates[id] = callback;
             messageListener.addEventListener("message", callback);
@@ -125,25 +180,34 @@ var fc = (function (messageListener) {
         };
     }());
 
-    function passableLog() {
+    passableLog = function () {
         return console.log.apply(console, quickSlice(arguments));
-    }
-    function passableError() {
+    };
+    passableError = function () {
         return console.error.apply(console, quickSlice(arguments));
-    }
+    };
 
-    function promise(func) {
+    promise = function (func) {
         if (func !== undefined && (typeof func) !== 'function') {
             throw new TypeError("Argument given to factotum:promise is not a function");
         }
+
+        var failureCallbacks;
+        var finalValue;
+        var status;
+        var successCallbacks;
+
+        var callbackWrapper;
+        var reject;
+        var resolve;
+        var then;
+
         func = func || null;
+        successCallbacks = [];
+        failureCallbacks = [];
+        status = 'pending';
 
-        var successCallbacks = [],
-            failureCallbacks = [],
-            status = "pending",
-            finalValue;
-
-        function resolve(value) {
+        resolve = function (value) {
             if (status !== 'pending') {
                 console.warn("Tried to call resolve on a non-pending factotum:promise");
                 return;
@@ -161,9 +225,9 @@ var fc = (function (messageListener) {
 
             successCallbacks = null;
             failureCallbacks = null;
-        }
+        };
 
-        function reject(value) {
+        reject = function (value) {
             if (status !== 'pending') {
                 console.warn("Tried to call resolve on a non-pending factotum:promise");
                 return;
@@ -181,11 +245,12 @@ var fc = (function (messageListener) {
 
             successCallbacks = null;
             failureCallbacks = null;
-        }
+        };
 
-        function callbackWrapper(callback, nextPromise) {
+        callbackWrapper = function (callback, nextPromise) {
             return function (value) {
                 var retValue;
+
                 try {
                     retValue = callback(value);
                     if (retValue.hasOwnProperty('then') === true && (typeof retValue.then) === 'function') {
@@ -204,36 +269,37 @@ var fc = (function (messageListener) {
                     nextPromise.reject(error);
                 }
             };
-        }
-        function then(onSuccess, onFailure) {
+        };
+        then = function (onSuccess, onFailure) {
+            var nextPromise;
+
             onSuccess = onSuccess || null;
             onFailure = onFailure || null;
-
-            var nextPromise = promise();
+            nextPromise = promise();
 
             switch (status) {
-            case 'pending':
-                if (onSuccess !== null) {
-                    successCallbacks.push(callbackWrapper(onSuccess, nextPromise));
-                }
-                if (onFailure !== null) {
-                    failureCallbacks.push(callbackWrapper(onFailure, nextPromise));
-                }
-                break;
-            case 'resolved':
-                if (onSuccess !== null) {
-                    callbackWrapper(onSuccess, nextPromise)(finalValue);
-                }
-                break;
-            case 'rejected':
-                if (onFailure !== null) {
-                    callbackWrapper(onFailure, nextPromise)(finalValue);
-                }
-                break;
+                case 'pending':
+                    if (onSuccess !== null) {
+                        successCallbacks.push(callbackWrapper(onSuccess, nextPromise));
+                    }
+                    if (onFailure !== null) {
+                        failureCallbacks.push(callbackWrapper(onFailure, nextPromise));
+                    }
+                    break;
+                case 'resolved':
+                    if (onSuccess !== null) {
+                        callbackWrapper(onSuccess, nextPromise)(finalValue);
+                    }
+                    break;
+                case 'rejected':
+                    if (onFailure !== null) {
+                        callbackWrapper(onFailure, nextPromise)(finalValue);
+                    }
+                    break;
             }
 
             return nextPromise;
-        }
+        };
 
         if (func !== null) {
             func(resolve, reject);
@@ -250,12 +316,17 @@ var fc = (function (messageListener) {
             resolve: resolve,
             reject: reject
         });
-    }
+    };
     promise.all = function () {
-        var args = quickSlice(arguments),
-            finalValues = range(args.length),
-            remaining = args.length,
-            allPromise = promise();
+        var allPromise;
+        var args;
+        var finalValues;
+        var remaining;
+
+        args = quickSlice(arguments);
+        finalValues = range(args.length);
+        remaining = args.length;
+        allPromise = promise();
 
         args.forEach(function (arg, index) {
             arg.then(function (value) {
@@ -270,8 +341,9 @@ var fc = (function (messageListener) {
         return allPromise;
     };
     promise.race = function () {
-        var first = fc.promise();
+        var first;
 
+        first = fc.promise();
         quickSlice(arguments).forEach(
             function (arg) {
                 arg.then(function (value) {
@@ -285,7 +357,7 @@ var fc = (function (messageListener) {
         return first;
     };
 
-    function ajaxGet(url, headers) {
+    ajaxGet = function (url, headers) {
         headers = headers || {};
 
         return promise(
@@ -320,15 +392,18 @@ var fc = (function (messageListener) {
                 }
             }
         );
-    }
+    };
 
-    function ajaxPost(url, data, headers) {
+    ajaxPost = function (url, data, headers) {
         headers = headers || {};
 
         return promise(
             function (resolve, reject) {
-                var request = new XMLHttpRequest(),
-                    postData = JSON.stringify(data);
+                var postData;
+                var request;
+
+                request = new XMLHttpRequest();
+                postData = JSON.stringify(data);
 
                 request.addEventListener(
                     "load",
@@ -359,75 +434,7 @@ var fc = (function (messageListener) {
                 }
             }
         );
-    }
-
-    function sprintf(format) {
-        var args = quickSlice(arguments, 1);
-
-        return format.replace(
-            /\%\%|\%\{[a-zA-Z0-9\/ ]+?\}/g,
-            function (str) {
-                if (str === "%%") {
-                    return "%";
-                }
-
-                var info = str.slice(2, -1).split('/'),
-                    propertyChain = info[0].split('.'),
-                    formatType = info[1] || 'string',
-                    value = args,
-                    formatFunction = null;
-
-                if (sprintf.userFormat.hasOwnProperty(formatType) === true) {
-                    formatFunction = sprintf.userFormat[formatType];
-                }
-                if (sprintf.format.hasOwnProperty(formatType) === true) {
-                    formatFunction = sprintf.format[formatType];
-                }
-
-                if (formatFunction === null) {
-                    throw new Error("Format `" + formatType + "` has not been added to sprintf");
-                }
-
-                propertyChain.forEach(
-                    function (prop) {
-                        value = value[prop];
-                    }
-                );
-
-                return formatFunction(value);
-            }
-        );
-    }
-    sprintf.format = Object.freeze({
-        string: function (value) {
-            return value.toString();
-        },
-        number: function (value) {
-            return (+value);
-        },
-        exp: function (value) {
-            return (+value).toExponential();
-        },
-        EXP: function (value) {
-            return (+value).toExponential().toUpperCase();
-        },
-        hex: function (value) {
-            return (+value).toString(16);
-        },
-        HEX: function (value) {
-            return (+value).toString(16).toUpperCase();
-        },
-        bin: function (value) {
-            return (+value).toString(2);
-        },
-        json: function (value) {
-            return JSON.stringify(value);
-        },
-        url: function (value) {
-            return encodeURIComponent(value.toString());
-        }
-    });
-    sprintf.userFormat = {};
+    };
 
     return Object.freeze({
         util: {
@@ -437,6 +444,7 @@ var fc = (function (messageListener) {
             clearImmediate: clearImmediate
         },
         slice: quickSlice,
+        remove: remove,
         range: range,
         indexOf: indexOf,
         assign: assign,
@@ -447,7 +455,9 @@ var fc = (function (messageListener) {
         ajax: {
             get: ajaxGet,
             post: ajaxPost
-        },
-        sprintf: sprintf
+        }
     });
-}(window));
+}(window || null));
+if (typeof module !== 'undefined') {
+    module.exports = fc;
+}
